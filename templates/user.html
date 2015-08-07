@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Reddit Explorer</title>
+
+    <style>
+
+      body {
+        font-family: verdana;
+        margin: 0;
+      }
+
+      div {
+        padding-top: 10px;
+        padding-left: 30px;
+      }
+
+      div.header {
+          background-color: #EFF7FF; /* dark: #369369; light: #EFF7FF; medium: #D1E3FA */
+          border-bottom: 1px solid #999;
+      }
+
+      div.comment {
+        padding-top: 15px;
+      }
+
+      div.meta {
+        font-size: 10pt;
+      }
+
+    </style>
+
+  </head>
+
+  <body>
+
+    <div class="header">
+      <h1>Reddit Explorer</h1>
+    </div>
+
+    <div class="container">
+
+      <h2>{{data['username']}}</h2>
+
+      <div class="comments">
+
+      {% for comment in data['comments'] %}
+
+      <div id="topic"><a href="link to reddit page{{comment['link_id']}}">{{comment['link_name']}}</a></div>
+
+      <div class="comment">
+        <div class="meta">
+        Ups: {{comment['ups']}}
+        &nbsp;&nbsp;&nbsp;
+        Downs: {{comment['downs']}}
+        </div>
+        <div class="comment-body">{{comment['body']}}</div>
+      </div>
+
+      <div id="responses">
+
+      {% for response in comment['responses'] %}
+
+      <div class="response" style="border:1px;">
+        <div class="meta">
+        Ups: {{response['ups']}}
+        &nbsp;&nbsp;&nbsp;
+        Downs: {{response['downs']}}
+        </div>
+        <div class="comment-body">{{response['body']}}</div>
+      </div>
+
+      {% endfor %}
+
+      </div>
+
+      {% endfor %}
+
+      </div>
+
+    </div>
+
+  </body>
+</html>
