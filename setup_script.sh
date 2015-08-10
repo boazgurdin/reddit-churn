@@ -1,7 +1,3 @@
-# Set AWS credentials
-export AWS_ACCESS_KEY_ID=AKIAIUD55SX7VWBAZ7AA
-export AWS_SECRET_ACCESS_KEY=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
-
 # Update AWS CLI
 yum update aws-cli
 
