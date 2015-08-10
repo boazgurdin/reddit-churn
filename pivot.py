@@ -2,18 +2,18 @@ from pyspark import SparkContext
 from pyspark.sql import HiveContext
 import os
 
-acc='AKIAIK7YEMWJHNEXHMRA'
-sec='6SG78BGJYbyjDhXGmcS8FTxkpoAhy8mDzkWDsED+'
+acc = os.environ['AWS_ACCESS_KEY_ID']
+sec = os.environ['AWS_SECRET_ACCESS_KEY']
 
 sc = SparkContext() # 'local[4]', 'RedditPivot')
 sqlContext = HiveContext(sc)
 
 #comments = sqlContext.read.json('data/test/*/')
-#comments = sqlContext.read.json('s3n://%s:%s@boazreddit/micro_fake.json' % (os.environ['AWS_ACCESS_KEY'], os.environ['AWS_SECRET_KEY']))
-#comments = sqlContext.read.json('s3n://%s:%s@boazreddit/test/*/*' % (os.environ['AWS_ACCESS_KEY'], os.environ['AWS_SECRET_KEY']))
+#comments = sqlContext.read.json('s3n://%s:%s@boazreddit/micro_fake.json' % (acc, sec))
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/test/*/*' % (acc, sec))
+#comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/2007/*' % (acc, sec))
+comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/200*/*' % (acc, sec))
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/*/*' % (acc, sec))
-comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/2007/*' % (acc, sec))
 
 comments.registerTempTable('comments')
 sqlContext.cacheTable('comments')
@@ -71,10 +71,10 @@ users = sqlContext.sql('''SELECT
                         ON comments.id=SUBSTR(responses.parent_id,4)''')
 
 users.registerTempTable('users')
-#users.toJSON().saveAsTextFile('users_test')
-#users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/outtest4' % (os.environ['AWS_ACCESS_KEY'], os.environ['AWS_SECRET_KEY']))
+
 #users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users' % (acc,sec))
-users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2007' % (acc, sec))
+#users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2007' % (acc, sec))
+users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2000s' % (acc, sec))
 
 sc.stop()
 
