@@ -5,18 +5,20 @@ import os
 acc = os.environ['AWS_ACCESS_KEY_ID']
 sec = os.environ['AWS_SECRET_ACCESS_KEY']
 
-sc = SparkContext('local[4]', 'RedditPivot')
+sc = SparkContext() #'local[4]', 'RedditPivot')
 sqlContext = HiveContext(sc)
 
-comments = sqlContext.read.json('data/test/*/')
+numPartitions = 500
+
+#comments = sqlContext.read.json('data/test/*/')
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/micro_fake.json' % (acc, sec))
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/test/*/*' % (acc, sec))
-#comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/2007/*' % (acc, sec))
+comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/2007/*' % (acc, sec))
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/200*/*' % (acc, sec))
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/*/*' % (acc, sec))
 
-comments.registerTempTable('comments')
-comments.repartition(5)
+comments2 = comments.repartition(numPartitions)
+comments2.registerTempTable('comments')
 sqlContext.cacheTable('comments')
 
 user_pivot = sqlContext.sql('''SELECT
@@ -30,8 +32,8 @@ user_pivot = sqlContext.sql('''SELECT
                             COUNT(*) AS total_posts
                        FROM comments
                        GROUP BY author''')
-user_pivot.registerTempTable('user_pivot')
-user_pivot.repartition(5)
+user_pivot2 = user_pivot.repartition(numPartitions)
+user_pivot2.registerTempTable('user_pivot')
 sqlContext.cacheTable('user_pivot')
 
 responses = sqlContext.sql('''SELECT
@@ -46,8 +48,8 @@ responses = sqlContext.sql('''SELECT
                             comments
                         GROUP BY
                             parent_id''')
-responses.registerTempTable('responses')
-responses.repartition(5)
+responses2 = responses.repartition(numPartitions)
+responses2.registerTempTable('responses')
 sqlContext.cacheTable('responses')
 
 users = sqlContext.sql('''SELECT
@@ -79,12 +81,12 @@ users = sqlContext.sql('''SELECT
                     LEFT OUTER JOIN responses
                         ON comments.id=SUBSTR(responses.parent_id,4)''')
 
-users.registerTempTable('users')
 users.cache()
+users.registerTempTable('users')
 
-users.toJSON().saveAsTextFile('data/outtest12')
+#users.toJSON().saveAsTextFile('data/outtest12')
 #users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users' % (acc,sec))
-#users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2007' % (acc, sec))
+users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2007c' % (acc, sec))
 #users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2000s' % (acc, sec))
 
 sc.stop()
