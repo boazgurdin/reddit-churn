@@ -1,25 +1,37 @@
-from pyspark import SparkContext
+from pyspark import SparkContext, SparkConf
 from pyspark.sql import HiveContext
 import os
 
 acc = os.environ['AWS_ACCESS_KEY_ID']
 sec = os.environ['AWS_SECRET_ACCESS_KEY']
 
-sc = SparkContext() #'local[4]', 'RedditPivot')
-sqlContext = HiveContext(sc)
+conf = SparkConf()
+conf.set('spark.driver.memory', '3g')
 
-numPartitions = 500
+numPartitions = 188
+
+sc = SparkContext(conf) #'local[4]', 'RedditPivot')
+sqlContext = HiveContext(sc)
+sqlContext.sql('set spark.sql.shuffle.partitions=%i' % numPartitions)
+
 
 #comments = sqlContext.read.json('data/test/*/')
-#comments = sqlContext.read.json('s3n://%s:%s@boazreddit/micro_fake.json' % (acc, sec))
+#comments = sqlContext.read.json('data/micro_fake.json')
+comments = sqlContext.read.json('s3n://%s:%s@boazreddit/micro_fake.json' % (acc, sec))
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/test/*/*' % (acc, sec))
-comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/2007/*' % (acc, sec))
+#comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/2007/*' % (acc, sec))
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/200*/*' % (acc, sec))
 #comments = sqlContext.read.json('s3n://%s:%s@boazreddit/comments/*/*' % (acc, sec))
 
-comments2 = comments.repartition(numPartitions)
-comments2.registerTempTable('comments')
+polcomments = comments.filter(comments.subreddit=='politics')
+
+polcomments2 = polcomments.repartition(numPartitions)
+polcomments2.registerTempTable('comments')
 sqlContext.cacheTable('comments')
+
+# Removed when filtering to single subreddit
+# COLLECT_LIST(subreddit) AS subreddits,
+# COUNT(DISTINCT(subreddit)) AS total_subreddits,
 
 user_pivot = sqlContext.sql('''SELECT
                             author,
@@ -27,14 +39,12 @@ user_pivot = sqlContext.sql('''SELECT
                             MAX(CAST((FROM_UNIXTIME(INT(created_utc))) AS TIMESTAMP)) AS last_post_datetime,
                             COLLECT_LIST(CAST((FROM_UNIXTIME(INT(created_utc))) AS TIMESTAMP)) AS post_datetimes,
                             COLLECT_LIST(id) AS post_ids,
-                            COLLECT_LIST(subreddit) AS subreddits,
-                            COUNT(DISTINCT(subreddit)) AS total_subreddits,
                             COUNT(*) AS total_posts
                        FROM comments
                        GROUP BY author''')
-user_pivot2 = user_pivot.repartition(numPartitions)
-user_pivot2.registerTempTable('user_pivot')
-sqlContext.cacheTable('user_pivot')
+#user_pivot2 = user_pivot.repartition(numPartitions)
+user_pivot.registerTempTable('user_pivot')
+#sqlContext.cacheTable('user_pivot')
 
 responses = sqlContext.sql('''SELECT
                             parent_id,
@@ -48,15 +58,19 @@ responses = sqlContext.sql('''SELECT
                             comments
                         GROUP BY
                             parent_id''')
-responses2 = responses.repartition(numPartitions)
-responses2.registerTempTable('responses')
-sqlContext.cacheTable('responses')
+#responses2 = responses.repartition(numPartitions)
+responses.registerTempTable('responses')
+#sqlContext.cacheTable('responses')
+
+# Removed when filtering to single subreddit
+# comments.subreddit AS first_post_subreddit,
+# user_pivot.subreddits AS subreddits,
+# user_pivot.total_subreddits AS total_subreddits,
 
 users = sqlContext.sql('''SELECT
                     comments.author AS author,
                     comments.id AS first_post_id,
                     comments.body AS first_post_body,
-                    comments.subreddit AS first_post_subreddit,
                     comments.ups AS first_post_ups,
                     comments.downs AS first_post_downs,
                     comments.link_id AS first_post_link_id,
@@ -71,8 +85,6 @@ users = sqlContext.sql('''SELECT
                     user_pivot.last_post_datetime AS last_post_datetime,
                     user_pivot.post_ids AS post_ids,
                     user_pivot.post_datetimes AS post_datetimes,
-                    user_pivot.subreddits AS subreddits,
-                    user_pivot.total_subreddits AS total_subreddits,
                     user_pivot.total_posts AS total_posts
                     FROM comments
                     JOIN user_pivot
@@ -81,13 +93,15 @@ users = sqlContext.sql('''SELECT
                     LEFT OUTER JOIN responses
                         ON comments.id=SUBSTR(responses.parent_id,4)''')
 
-users.cache()
-users.registerTempTable('users')
+#users2 = users.repartition(numPartitions)
+#users.cache()
+#users.registerTempTable('users')
 
-#users.toJSON().saveAsTextFile('data/outtest12')
+#users.toJSON().saveAsTextFile('data/poltest')
 #users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users' % (acc,sec))
-users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2007c' % (acc, sec))
-#users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2000s' % (acc, sec))
+#users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/users2007c' % (acc, sec))
+#users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/politicos' % (acc, sec))
+users.toJSON().saveAsTextFile('s3n://%s:%s@boazreddit/tests/outtest111' % (acc, sec))
 
 sc.stop()
 
